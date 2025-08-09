@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  minio:
+    image: quay.io/minio/minio
+    command: server /data --console-address ":9001"
+    networks:
+      - traefik_public
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: tu_usuario
+      MINIO_ROOT_PASSWORD: tu_contraseña_32_caracteres
+      MINIO_BROWSER_REDIRECT_URL: https://tu_subdominio1.com
+      MINIO_SERVER_URL: https://tu_subdominio2.com
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+          limits:
+            cpus: '0.5'
+            memory: 1024M
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.minio_s3.rule=Host(`tu_subdominio2.com`)
+        - traefik.http.routers.minio_s3.tls.certresolver=le
+        - traefik.http.routers.minio_s3.entrypoints=websecure
+        - traefik.http.routers.minio_s3.tls=true
+        - traefik.http.routers.minio_s3.service=minio_s3
+        - traefik.http.services.minio_s3.loadbalancer.server.port=9000
+        - traefik.http.routers.minio_console.rule=Host(`tu_subdominio1.com`)
+        - traefik.http.routers.minio_console.tls.certresolver=le
+        - traefik.http.routers.minio_console.entrypoints=websecure
+        - traefik.http.routers.minio_console.tls=true
+        - traefik.http.routers.minio_console.service=minio_console
+        - traefik.http.services.minio_console.loadbalancer.server.port=9001
+
+volumes:
+  minio_data:
+    external: true
+
+networks:
+  traefik_public:
+    external: true

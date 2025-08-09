@@ -1,0 +1,91 @@
+version: "3.8"
+
+services:
+  typebot_builder:
+    image: elestio/typebot-builder:latest
+    networks:
+      - traefik_public
+      - general_network
+    environment:
+      DATABASE_URL: postgresql://postgres:tu_contraseña_postgres@postgres:5432/typebot
+      ENCRYPTION_SECRET: tu_contraseña_32_caracteres
+      NEXTAUTH_URL: https://builder.tu-dominio.com
+      NEXT_PUBLIC_VIEWER_URL: https://viewer.tu-dominio.com
+      NEXTAUTH_URL_INTERNAL: http://localhost:3000
+      ADMIN_EMAIL: tu-email@gmail.com
+      DISABLE_SIGNUP: "false"
+      SMTP_HOST: smtp.gmail.com
+      SMTP_USERNAME: tu-email@gmail.com
+      SMTP_PASSWORD: tu_contraseña_de_app
+      NEXT_PUBLIC_SMTP_FROM: "tu_usuario <tu-email@gmail.com>"
+      SMTP_PORT: 587
+      SMTP_SECURE: "true"
+      S3_ACCESS_KEY: tu_usuario_minio
+      S3_SECRET_KEY: tu_contraseña_32_caracteres_minio
+      S3_BUCKET: typebot
+      S3_ENDPOINT: minioback.tu-dominio.com
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.typebot_builder.rule=Host(`builder.tu-dominio.com`)
+        - traefik.http.routers.typebot_builder.tls.certresolver=le
+        - traefik.http.routers.typebot_builder.entrypoints=websecure
+        - traefik.http.routers.typebot_builder.tls=true
+        - traefik.http.routers.typebot_builder.service=typebot_builder
+        - traefik.http.services.typebot_builder.loadbalancer.server.port=3000
+
+  typebot_viewer:
+    image: elestio/typebot-viewer:latest
+    networks:
+      - traefik_public
+      - general_network
+    environment:
+      DATABASE_URL: postgresql://postgres:tu_contraseña_postgres@postgres:5432/typebot
+      ENCRYPTION_SECRET: tu_contraseña32_caracteres
+      NEXTAUTH_URL: https://builder.tu-dominio.com
+      NEXT_PUBLIC_VIEWER_URL: https://viewer.tu-dominio.com
+      NEXTAUTH_URL_INTERNAL: http://localhost:3000
+      ADMIN_EMAIL: tu-email@gmail.com
+      DISABLE_SIGNUP: "false"
+      SMTP_HOST: smtp.gmail.com
+      SMTP_USERNAME: tu-email@gmail.com
+      SMTP_PASSWORD: tu_contraseña_de_app
+      NEXT_PUBLIC_SMTP_FROM: "tu_usuario <tu-email@gmail.com>"
+      SMTP_PORT: 587
+      SMTP_SECURE: "true"
+      S3_ACCESS_KEY: tu_usuario_minio
+      S3_SECRET_KEY: tu_contraseña_32_caracteres_minio
+      S3_BUCKET: typebot
+      S3_ENDPOINT: minioback.tu-dominio.com
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.typebot_viewer.rule=Host(`viewer.tu-dominio.com`)
+        - traefik.http.routers.typebot_viewer.tls.certresolver=le
+        - traefik.http.routers.typebot_viewer.entrypoints=websecure
+        - traefik.http.routers.typebot_viewer.tls=true
+        - traefik.http.routers.typebot_viewer.service=typebot_viewer
+        - traefik.http.services.typebot_viewer.loadbalancer.server.port=3000
+networks:
+  traefik_public:
+    external: true
+  general_network:
+    external: true

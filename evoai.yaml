@@ -1,0 +1,142 @@
+version: "3.7"
+services:
+  evoai_api:
+    image: evoapicloud/evo-ai:homolog
+    container_name: evoai_api
+    restart: always
+    volumes:
+      - evoai_logs:/app/logs
+      - evoai_static:/app/static
+    networks:
+      - evo-ai #Nome da rede
+    environment:
+      # URLs de acesso
+      - API_URL=https://evoai-api.seusite.com.br #URL da API
+      - APP_URL=https://evoai.seusite.com.br #URL do Frontend
+
+      # Metadados
+      - API_TITLE=Evo API #Titulo da API
+      - API_DESCRIPTION=API Agentes de IA #Descrição da API
+      - API_VERSION=1.0.0 #Versão da API
+      # Organização
+      - ORGANIZATION_NAME=Evo AI #Nome da organização
+      - ORGANIZATION_URL=https://evoai-api.seusite.com.br #URL da API
+
+      # Dados do Admin
+      - ADMIN_EMAIL=adm@example.com #Email do admin
+      - ADMIN_INITIAL_PASSWORD=meupassword #Senha do admin
+      - DEMO_EMAIL=demo@example.com #Email do demo
+      - DEMO_PASSWORD=meupassword #Senha do demo
+      - DEMO_CLIENT_NAME=demo
+
+      # Configuração de SMTP
+      - EMAIL_PROVIDER=smtp #Provider de email
+      - SMTP_FROM=demo@example.com #Email de envio
+      - SMTP_USER=demo@example.com #Email de envio
+      - SMTP_PASSWORD=senh-app #Senha de App
+      - SMTP_HOST=smtp.gmail.com #Host de envio
+      - SMTP_PORT=587 #Porta de envio
+      - SMTP_USE_TLS=true #Usar TLS
+      - SMTP_USE_SSL=false #Usar SSL
+      # Servidor
+      - HOST=0.0.0.0 #Endereço do servidor
+      - PORT=8000 #Porta do servidor
+      - DEBUG=false #Debug
+
+      # Configuração do Postgres
+      - POSTGRES_CONNECTION_STRING=postgresql://postgres:postgresevoai@postgresevoai:5432/evoai #String de conexão
+      - POSTGRES_DB=evoai #Nome do banco
+      - POSTGRES_HOST=postgresevoai #Endereço do banco
+      - POSTGRES_PORT=5432 #Porta do banco
+      - POSTGRES_USER=postgres #Usuário do banco
+      - POSTGRES_PASSWORD=postgresevoai #Senha do banco
+
+      # Configuração do Redis
+      - REDIS_HOST=redis #Endereço do redis
+      - REDIS_PORT=6379 #Porta do redis
+      - REDIS_DB=9 #Banco do redis
+      - REDIS_KEY_PREFIX=a2a #Prefixo do redis
+      - REDIS_SSL=false #Usar SSL
+      - REDIS_TTL=3600 #Tempo de vida do redis
+      - TOOLS_CACHE_TTL=3600 #Tempo de vida do cache
+
+      # Encriptação e JWT
+      - ENCRYPTION_KEY=cMoe5m4HFFMvPpAYJl4JOZNYuWJ5Mgc2YI7kd3nKYiw= #Chave de encriptação formato base64
+      - SECRET_KEY=cMoe5m4HFFMvPpAYJl4JOZNYuWJ5Mgc2YI7kd3nKYiw= #Chave de encriptação formato base64
+      - JWT_SECRET_KEY=cMoe5m4HFFMvPpAYJl4JOZNYuWJ5Mgc2YI7kd3nKYiw= #Chave de encriptação formato base64
+      - JWT_ALGORITHM=HS256 #Algoritmo do JWT
+      - JWT_EXPIRATION_TIME=3600 #Tempo de vida do JWT
+      - PYTHONPATH=/app/src #Caminho do Python
+
+      # Logs
+      - LOG_LEVEL=INFO #Nível do log
+      - LOG_DIR=logs #Caminho do log
+
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.evoai_api.rule=Host(`evoai-api.seusite.com.br`) #URL da API
+      - traefik.http.routers.evoai_api.entrypoints=websecure
+      - traefik.http.routers.evoai_api.service=evoai_api
+      - traefik.http.routers.evoai_api.tls.certresolver=leresolver
+      - traefik.http.services.evoai_api.loadbalancer.server.port=8000
+      - traefik.http.services.evoai_api.loadbalancer.passHostHeader=true
+    depends_on:
+      - postgresevoai
+      - redis
+
+  evoai_frontend:
+    image: evoapicloud/evo-ai-frontend:latest
+    container_name: evoai_frontend
+    restart: always
+    networks:
+      - evo-ai #Nome da rede
+    environment:
+      - NEXT_PUBLIC_API_URL=https://evoai-api.seusite.com.br #URL da API
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.evoai_frontend.rule=Host(`evoai.seusite.com.br`) #URL do Frontend
+      - traefik.http.routers.evoai_frontend.entrypoints=websecure
+      - traefik.http.routers.evoai_frontend.service=evoai_frontend
+      - traefik.http.routers.evoai_frontend.tls.certresolver=leresolver
+      - traefik.http.services.evoai_frontend.loadbalancer.server.port=3000
+      - traefik.http.services.evoai_frontend.loadbalancer.passHostHeader=true
+    depends_on:
+      - evoai_api
+
+  postgresevoai:
+    image: pgvector/pgvector:pg14
+    environment:
+      - POSTGRES_PASSWORD=postgresevoai #Senha do banco
+      - POSTGRES_DB=evoai #Nome do banco
+      - TZ=America/Sao_Paulo #Fuso horário
+    networks:
+      - evo-ai #Nome da rede
+    volumes:
+      - postgres_data_evoai:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    container_name: evoai_redis
+    restart: always
+    command:
+      - "redis-server"
+      - "--appendonly yes"
+      - "--port 6379"
+    volumes:
+      - evoai_redis_data:/data
+    networks:
+      - evo-ai #Nome da rede
+
+volumes:
+  evoai_logs:
+    name: evoai_logs
+  evoai_static:
+    name: evoai_static
+  postgres_data_evoai:
+    name: postgres_data_evoai
+  evoai_redis_data:
+    name: evoai_redis_data
+
+networks:
+  evo-ai: #Nome da rede
+    external: true
